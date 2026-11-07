@@ -4,7 +4,7 @@
 
 SugarScope is a web tool that estimates a person's chance of having diagnosed diabetes from simple health and lifestyle questions, so they know whether to ask a doctor for a blood sugar test.
 
-**Live app:** https://<your-app>.streamlit.app <!-- TODO: replace with the deployed link -->
+**Live app:** https://diabetesrisk-screening.streamlit.app/
 
 ![SugarScope home page](demo/screenshots/home.png)
 
