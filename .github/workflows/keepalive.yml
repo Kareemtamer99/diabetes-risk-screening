@@ -38,8 +38,7 @@ jobs:
                   page.wait_for_timeout(90_000)  # give the container time to boot
               else:
                   print("App was awake")
-              # The app itself renders inside an iframe on streamlit.app.
-              frame = next((f for f in page.frames if f != page.main_frame), page.main_frame)
-              frame.wait_for_selector("text=SugarScope", timeout=120_000)
-              print("App is up")
+              # The app renders inside an iframe; its page title reaches the outer tab.
+              page.wait_for_function("document.title.includes('SugarScope')", timeout=120_000)
+              print("App is up:", page.title())
           EOF
