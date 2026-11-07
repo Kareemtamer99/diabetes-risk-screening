@@ -1,0 +1,184 @@
+[
+ {
+  "section": "A",
+  "name": "App loads with no exception, disclaimer + both tabs",
+  "status": "PASS",
+  "detail": "models from G:\\Nextgen_intern\\models",
+  "secs": 3.3
+ },
+ {
+  "section": "A",
+  "name": "Every page (Home, Risk check, Population insights, How it works) loads clean",
+  "status": "PASS",
+  "detail": "home: 40843 chars; risk: 34758 chars; insights: 36111 chars; about: 36773 chars",
+  "secs": 2.7
+ },
+ {
+  "section": "A",
+  "name": "Home CTAs navigate to the right page; nav bar lists every page",
+  "status": "PASS",
+  "detail": "CTAs reach: risk, insights, about",
+  "secs": 2.7
+ },
+ {
+  "section": "A",
+  "name": "Both tabs submit with defaults -> result card",
+  "status": "PASS",
+  "detail": "quick=4% Low, full=1% Low",
+  "secs": 1.4
+ },
+ {
+  "section": "A",
+  "name": "Height/weight at limits (100/250 cm, 25/300 kg) give a result",
+  "status": "PASS",
+  "detail": "quick 100/25->4%; quick 100/300->7%; quick 250/25->2%; quick 250/300->13%; full 100/25->1%; full 100/300->1%; full 250/25->1%; full 250/300->2%",
+  "secs": 5.5
+ },
+ {
+  "section": "A",
+  "name": "Out-of-range height/weight -> friendly message, no result, no crash",
+  "status": "PASS",
+  "detail": "14 invalid combos rejected with a message",
+  "secs": 8.9
+ },
+ {
+  "section": "A",
+  "name": "BMI computed and clipped to 12-98",
+  "status": "PASS",
+  "detail": "all grid points in [12, 98], ints",
+  "secs": 0.0
+ },
+ {
+  "section": "A",
+  "name": "Age buckets at boundaries (18, 24, 25, 79, 80, 100) + app submit",
+  "status": "PASS",
+  "detail": "buckets OK; 18:1% 24:1% 25:1% 79:12% 80:12% 100:12% 18:0% 24:0% 25:0% 79:2% 80:2% 100:2%",
+  "secs": 8.3
+ },
+ {
+  "section": "A",
+  "name": "Every option of GenHlth / Education / Income submits; codes are 1..N",
+  "status": "PASS",
+  "detail": "24 option submissions OK",
+  "secs": 16.5
+ },
+ {
+  "section": "A",
+  "name": "All-yes and all-no answers (both tabs)",
+  "status": "PASS",
+  "detail": "quick all-yes=34% Medium; quick all-no=0% Low; full all-yes=25% Medium; full all-no=1% Low",
+  "secs": 2.8
+ },
+ {
+  "section": "A",
+  "name": "Missing models/ dir -> friendly error",
+  "status": "PASS",
+  "detail": "",
+  "secs": 0.4
+ },
+ {
+  "section": "A",
+  "name": "Missing one model file -> friendly error",
+  "status": "PASS",
+  "detail": "each of the 3 files removed in turn",
+  "secs": 1.4
+ },
+ {
+  "section": "A",
+  "name": "Corrupt meta.json / corrupt joblib -> friendly error",
+  "status": "PASS",
+  "detail": "5 corrupt variants",
+  "secs": 2.4
+ },
+ {
+  "section": "A",
+  "name": "meta.json missing a required key -> friendly error",
+  "status": "PASS",
+  "detail": "5 keys",
+  "secs": 2.6
+ },
+ {
+  "section": "A",
+  "name": "Partial meta.json (bad nested values) -> no traceback after submit",
+  "status": "PASS",
+  "detail": "",
+  "secs": 3.2
+ },
+ {
+  "section": "A",
+  "name": "Model that raises during predict -> friendly error",
+  "status": "PASS",
+  "detail": "",
+  "secs": 1.7
+ },
+ {
+  "section": "A",
+  "name": "Risk band matches risk_bands at and around the cut points",
+  "status": "PASS",
+  "detail": "0.000->0% Low 0.130->13% Low 0.139->14% Medium 0.140->14% Medium 0.141->14% Medium 0.320->32% Medium 0.499->50% High 0.500->50% High 0.501->50% High 1.000->100% High",
+  "secs": 8.4
+ },
+ {
+  "section": "A",
+  "name": "Disclaimer visible in Low / Medium / High / error states",
+  "status": "PASS",
+  "detail": "6 result states + validation error",
+  "secs": 4.8
+ },
+ {
+  "section": "A",
+  "name": "Factor list: no NaN/empty labels, only risk-raising, <=5, sorted",
+  "status": "PASS",
+  "detail": "1000 random answer sets; 7 produced no factors (fallback text verified)",
+  "secs": 1.0
+ },
+ {
+  "section": "A",
+  "name": "Result chart shows only listed factors with real labels",
+  "status": "PASS",
+  "detail": "Sex: Male; Heart disease or heart<br>attack: Yes; High cholesterol: Yes; High blood pressure:<br>Yes; General health: Poor",
+  "secs": 0.7
+ },
+ {
+  "section": "F",
+  "name": "Multi-year trend + state map: shown with both files, each hides alone, bad files hide, no crash",
+  "status": "PASS",
+  "detail": "6 file combos on synthetic fixtures + map year switch",
+  "secs": 5.9
+ },
+ {
+  "section": "F",
+  "name": "Each optional file missing or corrupt -> its section hides, no crash",
+  "status": "PASS",
+  "detail": "hidden cleanly: segments.joblib, segments.json, threshold_curve.json, multiyear.json, state_prevalence.csv; insights page/link hidden when all are absent",
+  "secs": 17.4
+ },
+ {
+  "section": "F",
+  "name": "Cost planner math: per-1000 counts consistent, no divide-by-zero",
+  "status": "PASS",
+  "detail": "full: 79 pts, positives/1000=153, recall@thr 0.796 vs meta 0.799; short: 79 pts, positives/1000=153, recall@thr 0.815 vs meta 0.812",
+  "secs": 0.0
+ },
+ {
+  "section": "F",
+  "name": "Cost planner UI at extreme cut-offs and costs -> finite values, no crash",
+  "status": "PASS",
+  "detail": "full@0.02/$0: $0.00; full@0.02/$10000: $52,507.29; full@0.80/$0: $0.00; full@0.80/$10000: $11,176.47; short@0.02/$0: $0.00; short@0.02/$10000: $54,155.08; short@0.80/$0: $0.00; short@0.80/$10000: $11,891.89",
+  "secs": 8.5
+ },
+ {
+  "section": "F",
+  "name": "What-if: before/after in [0,1] for every change, both tabs, extreme weights",
+  "status": "PASS",
+  "detail": "quick yes w=25: 34%/0%; quick yes w=300: 34%/1%; quick no w=25: 0%/0%; quick no w=300: 0%/1%; full yes w=25: 25%/1%; full yes w=300: 25%/3%; full no w=25: 1%/0%; full no w=300: 1%/1%; score() in [0,1] on 400 random profiles",
+  "secs": 14.0
+ },
+ {
+  "section": "F",
+  "name": "Segments: predict on extreme inputs returns a known segment; json sane",
+  "status": "PASS",
+  "detail": "k=4; extremes -> 0/2; random spread {3: 897, 2: 824, 1: 155, 0: 126}",
+  "secs": 0.1
+ }
+]

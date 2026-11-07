@@ -27,9 +27,9 @@ caption: Diabetes risk screening, in about a minute.
 caption: Six questions. No sign-up.
 
 ## fill
-> You answer six questions from the CDC's health survey. The model is built on 229,474 real survey responses, and the quick check catches 81 percent of people with diagnosed diabetes.
+> Six questions from the CDC's health survey. Built on 229,474 real responses, the quick check catches 81 percent of people with diagnosed diabetes.
 
-say: You answer six questions from the CDC's health survey. The model is built on two hundred twenty-nine thousand real survey responses, and the quick check catches eighty-one percent of people with diagnosed diabetes.
+say: Six questions from the C D C's health survey. Built on two hundred twenty-nine thousand real responses, the quick check catches eighty-one percent of people with diagnosed diabetes.
 
 
 caption: Six questions from the CDC's BRFSS health survey.
@@ -69,7 +69,7 @@ caption: (outro card) Live app and GitHub links. Screening aid, not a medical di
 ## Planned timing (Andrew, +5%)
 128 words, 46.1 s of speech. The estimated take is about 63 s against the 60 s limit; the real length is known only after the take.
 If it runs over 60 s, the first trims are the home and segments holds, before any narration changes.
-The what-if line says "drop" because both scripted changes lower risk: weight 104 to 80 kg, then blood pressure treated (52% to 26% in the last take).
+The what-if line says "drop" because both scripted changes lower risk: weight 104 to 80 kg, then blood pressure treated. The form now sets only age, weight and blood pressure Yes.
 
 ## Commands
 - `.venv/Scripts/python demo/voiceover.py all --live-url URL`: tts, then record, then mix (about 4 min).

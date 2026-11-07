@@ -879,6 +879,10 @@ def d_ignore():
 
 
 KEYWORDS = ["cl" + "aude", "anth" + "ropic", "co-auth" + "ored-by", "gener" + "ated with"]
+# Lead rule: no claim of AI/assistant authorship. The bare word "AI" is fine ("AI & Machine Learning Internship", #AI).
+_VENDORS = "ch" + "at ?gpt|op" + "en ?ai|co" + "pilot"  # split so this scan does not flag its own source
+AUTHORSHIP = re.compile(r"\b(?:generated|written|created|built|made|coded|authored)\s+(?:with|by|using)\s+(?:an?\s+)?"
+                        rf"(?:AI|assistant|LLM|{_VENDORS}|ge" r"mini)\b|\b(?:" + _VENDORS + r")\b", re.I)
 
 
 @check("D", "No assistant/tool attribution text anywhere (outside the tool settings dir)")
@@ -903,7 +907,7 @@ def d_attribution():
         except (UnicodeDecodeError, OSError):  # OSError covers PermissionError: skip, never fail
             continue
         for ln, line in enumerate(txt.splitlines(), 1):
-            if pat.search(line) or (p.suffix in (".py", ".md", ".toml", ".yml", ".txt", "") and re.search(r"\bAI\b", line)):
+            if pat.search(line) or (p.suffix in (".py", ".md", ".toml", ".yml", ".txt", "") and AUTHORSHIP.search(line)):
                 (hits_tracked if p.resolve() in tracked else hits_other).append(f"{rel}:{ln}")
     assert not hits_tracked, f"hits in files that would be committed: {hits_tracked}"
     if hits_other:
@@ -982,7 +986,7 @@ def d_no_emoji():
                 shown += [str(o) for o in (getattr(e, "options", None) or [])]
         blob = "\n".join(shown)
         hits += [f"rendered app U+{ord(ch):04X}" for ch in EMOJI.findall(blob)]
-        hits += [f"rendered app word: {w!r}" for w in re.findall(r"\bAI\b", blob)]
+        hits += [f"rendered app authorship claim: {m.group(0)!r}" for m in AUTHORSHIP.finditer(blob)]
     assert not hits, f"{len(hits)} emoji/word hits: {hits[:12]}"
     return f"{len(files)} files + 5 rendered views (both results, home, insights, about) scanned"
 

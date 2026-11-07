@@ -34,7 +34,7 @@ W, H = 1920, 1080
 BRAND, PRIMARY, ACCENT = "#0C3646", "#0E7490", "#67E8F9"
 
 # Demo persona: answers that land in the high band, so the what-if has room to move.
-PERSONA = {"age": "58", "weight": "104", "health": "Fair", "weight_after": 80}
+PERSONA = {"age": "58", "height": "175", "weight": "104", "health": "Fair", "weight_after": 80}
 
 CAPTIONS = {
     "home": "Diabetes risk screening, in about a minute.",
@@ -304,7 +304,7 @@ class Director:
         dist = math.hypot(dx, dy)
         if dist < 2:
             return
-        steps = int(min(38, max(12, dist / 28)) / speed)
+        steps = int(min(26, max(9, dist / 32)) / speed)  # brisk: about 0.15 to 0.4 s per move
         # slight arc: perpendicular offset, like a wrist movement
         nx, ny = (-dy / dist, dx / dist)
         bow = min(60.0, dist * 0.08)
@@ -339,7 +339,7 @@ class Director:
             try:
                 loc.wait_for(state="visible", timeout=15000)
                 self.hover(loc)
-                self.pause(180)
+                self.pause(110)
                 self.page.mouse.down()
                 self.pause(90)
                 self.page.mouse.up()
@@ -355,7 +355,7 @@ class Director:
         self.click(box)
         box.select_text()
         self.pause(150)
-        box.press_sequentially(text, delay=90 if self.record else 0)
+        box.press_sequentially(text, delay=40 if self.record else 0)
         self.pause(250)
         box.press("Enter")
         self.idle()
@@ -466,17 +466,18 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     h1 = d.first_visible(page.locator("h1"), timeout=3000)
     if h1:
         d.hover(h1, 0.3, 0.5)
-        d.pause(600)
+        d.pause(300)
         d.hover(h1, 0.75, 0.6)
-    d.pause(500)
+    d.pause(300)
     d.shot("home")
     bento = d.first_visible(page.locator(".bento"), timeout=2000)
     if bento:  # the stat tiles count up (1.1 s) once they scroll into view; hold until they settle
         d.scroll_to(bento)
-        d.pause(1800)
+        d.pause(1300)
 
     # Start
-    start = d.first_visible(page.get_by_role("link", name=re.compile("start your risk check", re.I)),
+    # the CTA band sits below the stats, so no scroll back up to the hero button
+    start = d.first_visible(page.locator('.st-key-cta_band_start button'), page.get_by_role("link", name=re.compile("start your risk check", re.I)),
                             page.get_by_role("button", name=re.compile("start your risk check", re.I)), timeout=3000)
     if start:
         d.mark("start", CAPTIONS["start"])
@@ -484,7 +485,7 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
         d.click(start)
         d.idle(600)
         d.overlay()  # no-op unless the page reloaded
-        d.pause(500)
+        d.pause(300)
     else:
         print("    no 'Start your risk check' control: skipping the start scene", flush=True)
     quick = d.first_visible(page.get_by_role("tab", name=re.compile(r"^\s*quick check", re.I)), timeout=3000)
@@ -494,24 +495,24 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
 
     # Quick check
     d.mark("fill", CAPTIONS["fill"])
+    # Real use on screen: type, click toggles, open a dropdown. Blood pressure Yes also unlocks the what-if toggle.
     d.type_into(d.widget("Age (years)"), PERSONA["age"])
     sex = d.widget("Sex")
     d.click(sex.locator("button").filter(has_text=re.compile(r"^\s*Male\s*$")))
     d.idle()
+    d.type_into(d.widget("Height (cm)"), PERSONA["height"])
     d.type_into(d.widget("Weight (kg)"), PERSONA["weight"])
     for label in ("high blood pressure", "high cholesterol"):
         w = d.widget(label)
         d.scroll_to(w)
         d.click(w.locator("button").filter(has_text=re.compile(r"^\s*Yes\s*$")))
         d.idle()
-        d.pause(150)
     health = d.widget("rate your health")
     d.scroll_to(health)
     d.click(health.locator('[role="combobox"], [data-baseweb="select"]').first)
-    d.pause(300)
+    d.pause(250)
     d.click(page.get_by_role("option", name=PERSONA["health"], exact=True))
     d.idle()
-    d.pause(250)
     submit = d.first_visible(page.get_by_role("button", name=re.compile("check my risk", re.I)))
     d.scroll_to(submit)
     d.click(submit)
@@ -524,12 +525,12 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     d.mark("result", CAPTIONS["result"])
     d.scroll_to(risk, "center")
     d.hover(risk, 0.6, 3)
-    d.pause(1800)
+    d.pause(900)
     bars = d.first_visible(page.get_by_text("What raised your score", exact=True), timeout=3000)
     if bars:
         d.hover(bars, 0.3, 4)
-        d.pause(1000)
-    d.pause(800)
+        d.pause(600)
+    d.pause(300)
     d.shot("result")
 
     # What-if
@@ -548,7 +549,7 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     if after:
         d.scroll_to(after)
         d.hover(after, 0.5, 1.5)
-    d.pause(1200)
+    d.pause(700)
     d.shot("whatif")
 
     # Population insights
@@ -560,26 +561,35 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
             d.mark("segments", segments_caption())
             d.scroll_to(seg, "start")
             scatter = d.first_visible(page.locator('[class*="st-key-ins_pca"], .stPlotlyChart'), timeout=3000)
-            d.pause(800)
+            d.pause(500)
             if scatter:
                 d.hover(scatter, 0.35, 0.4)
-                d.pause(500)
+                d.pause(400)
                 d.hover(scatter, 0.6, 0.55)
-            d.pause(700)
+            d.pause(400)
             d.shot("insights")
         cut = d.widget("Flag people whose estimate is at least")
         if cut.count():
             d.mark("cost", CAPTIONS["cost"])
             d.scroll_to(cut)
             d.drag_slider(cut, frac=min(0.92, d.slider_frac(cut) + 0.3))
-            d.pause(2000)
+            d.pause(900)
         else:
             print("    no cost planner: skipping the cost scene", flush=True)
         valid = d.first_visible(page.get_by_text(re.compile("hold up in later years")), timeout=2000)
         if valid:  # heading at the top, so the ROC-AUC table below it is on screen
             d.mark("validation", CAPTIONS["validation"])
             d.scroll_to(valid, "start")
-            d.pause(1500)
+            d.pause(600)
+            year = d.widget("Survey year")  # the map sits beside the table: switch its year, then hover a state
+            if year.count():
+                d.drag_slider(year, frac=0.0)
+                chart = d.first_visible(page.locator('[class*="st-key-ins_choropleth"]'), timeout=3000)
+                if chart:
+                    d.hover(chart, 0.55, 0.5)
+                    d.pause(700)
+            else:
+                d.pause(900)
         else:
             print("    no multi-year summary: skipping the validation scene", flush=True)
         state_map = d.first_visible(page.locator(".st-key-card_ins_map"), page.get_by_text("By state", exact=True), timeout=2000)
@@ -625,7 +635,7 @@ def run(args) -> tuple[Path | None, list]:
     server = start_server(port)
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, args=["--disable-gpu", "--disable-dev-shm-usage", "--renderer-process-limit=1"])  # the GPU process crashes when RAM is low
             try:
                 # Pass 1: fast, no video. Validates every step and writes clean screenshots.
                 ctx = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=1)
@@ -684,7 +694,8 @@ def post(raw: Path, scenes: list):
     start = t["intro"] + CUT_SKIP
     dur = t["end"] - start
     # Rerun speed varies with machine load; a uniform speed-up of up to ~15% keeps the cut under 60 s unnoticed.
-    k = 1.0 if TIMINGS_FILE.exists() else max(1.0, dur / 58.0)  # narration is timed in real seconds
+    # Uniform speed-up, at most 10%, keeps the cut under 60 s; voiceover.py speeds the narration by the same k.
+    k = max(1.0, min(1.10, dur / 59.5))
     (BUILD / "cut.json").write_text(json.dumps({"start": start, "k": k, "dur": dur / k}), encoding="utf-8")
     rel = {n: (v - start) / k for n, v in t.items()}
     x264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "18", "-profile:v", "high", "-level", "4.1",

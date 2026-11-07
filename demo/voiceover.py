@@ -11,6 +11,7 @@ import argparse
 import json
 import re
 import subprocess
+import wave
 import sys
 from pathlib import Path
 
@@ -84,25 +85,28 @@ def cmd_mix(_args):
     if not place:
         sys.exit("no clips match the recorded scenes: run `voiceover.py tts` before record.py")
     vdur = probe_duration(DEMO / "demo_1080p.mp4")
-    inputs, chains = [], []
-    for i, (name, at) in enumerate(place):
+    # A silent bed of the exact video length is input 0, so the mix always lasts the whole video.
+    inputs, chains = ["-f", "lavfi", "-t", f"{vdur:.3f}", "-i", "anullsrc=r=48000:cl=mono"], []
+    for i, (name, at) in enumerate(place, start=1):
         inputs += ["-i", clips[name]]
         ms = int(at * 1000)
-        chains.append(f"[{i}:a]aresample=48000,adelay={ms}|{ms}[a{i}]")
-    mix = "".join(f"[a{i}]" for i in range(len(place)))
-    graph = ";".join(chains) + (f";{mix}amix=inputs={len(place)}:normalize=0:duration=longest,"
-                                f"apad=whole_dur={vdur:.3f},atrim=0:{vdur:.3f},"
+        chains.append(f"[{i}:a]atempo={cut['k']:.4f},aresample=48000,adelay={ms}|{ms}[a{i}]")  # same speed-up as the video
+    mix = "[0:a]" + "".join(f"[a{i}]" for i in range(1, len(place) + 1))
+    graph = ";".join(chains) + (f";{mix}amix=inputs={len(place) + 1}:normalize=0:duration=first,"
                                 "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,"
                                 f"afade=t=in:d=0.05,afade=t=out:st={vdur - 0.6:.3f}:d=0.6[out]")
     wav = BUILD / "voiceover.wav"
     ff(*inputs, "-filter_complex", graph, "-map", "[out]", "-ac", "2", wav)
+    with wave.open(str(wav)) as w:
+        got = w.getnframes() / w.getframerate()
+    assert abs(got - vdur) < 0.25, f"voiceover is {got:.2f}s but the video is {vdur:.2f}s"
     for src in ("demo_1080p.mp4", "demo_square.mp4"):
         dst = DEMO / src.replace(".mp4", "_vo.mp4")
         ff("-i", DEMO / src, "-i", wav, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
            "-ar", "48000", "-shortest", "-movflags", "+faststart", dst)
         print(f"  {dst.relative_to(DEMO.parent)}: {dst.stat().st_size / 1e6:.2f} MB, {probe_duration(dst):.1f}s",
               flush=True)
-    late = [n for n, at in place if at + json.loads(TIMINGS_FILE.read_text())[n] > vdur]
+    late = [n for n, at in place if at + json.loads(TIMINGS_FILE.read_text())[n] / cut['k'] > vdur]
     if late:
         print(f"  warning: narration runs past the end of the video in {late}", flush=True)
 

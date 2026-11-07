@@ -6,6 +6,7 @@ import base64
 import html
 import json
 import math
+import textwrap
 import os
 from pathlib import Path
 
@@ -409,6 +410,34 @@ div[class*="st-key-card_ins_cost"] [data-testid="stMetric"] { background: #FFFFF
   .pipeline { grid-template-columns: 1fr; }
   .sec-count { margin-left: 50px; }
 }
+/* QA fixes: stack two-column layouts below 900px, let controls and labels wrap */
+@media (max-width: 900px) {
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-result_"]),
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-card_ins_map"]),
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-plan_model"]) { flex-wrap: wrap; gap: 24px; }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-result_"]) > [data-testid="stColumn"],
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-card_ins_map"]) > [data-testid="stColumn"],
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] div[class*="st-key-plan_model"]) > [data-testid="stColumn"] {
+      width: 100% !important; flex: 1 1 100% !important; min-width: 0; }
+  div[data-testid="stColumn"]:has(div[class*="st-key-result"]) { position: static; }
+}
+[data-testid="stButtonGroup"] button { min-width: 0; }
+[data-testid="stButtonGroup"] button p, [data-testid="stMetricLabel"] p, [data-testid="stMetricLabel"] div {
+    white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }
+[data-baseweb="select"] [title], [data-baseweb="select"] div[class*="ValueContainer"] div { white-space: normal; overflow: visible; text-overflow: clip; }
+div[class*="st-key-result_"] .note { margin: 8px 0; }
+[data-testid="stMainBlockContainer"]:has(div[class*="st-key-quick_submit"]) .site-footer { margin-top: 64px; }
+.vtable { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; margin: 8px 0; }
+.vtable th { text-align: left; font-weight: 600; color: var(--ink-2); font-size: 13px; padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); }
+.vtable td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: top; }
+.vtable td:first-child { overflow-wrap: anywhere; }
+.mt-note { display: block; font-family: 'Noto Sans', sans-serif; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 2px; }
+.spark text.val { fill: #FFFFFF; font-weight: 600; }
+@media (max-width: 560px) {
+  .vtable { font-size: 13px; }
+  .vtable th, .vtable td { padding-right: 6px; }
+  .spark text { font-size: 11.5px; }
+}
 </style>
 """
 
@@ -639,11 +668,18 @@ def render_inputs(features: list[str], prefix: str) -> tuple[dict, dict, list[st
     return values, answers, errors
 
 
+# Answers that are plainly healthy are never listed as raising risk, even if the model nudges them up slightly.
+HEALTHY = {**{f: (lambda v: v == 0) for f in ("HighBP", "HighChol", "Smoker", "Stroke", "HeartDiseaseorAttack",
+                                              "HvyAlcoholConsump", "NoDocbcCost", "DiffWalk", "MentHlth", "PhysHlth")},
+           **{f: (lambda v: v == 1) for f in ("PhysActivity", "Fruits", "Veggies", "AnyHealthcare", "CholCheck")},
+           "GenHlth": lambda v: v <= 3, "BMI": lambda v: v < 25}
+
+
 def risk_factors(values: dict, answers: dict, explainer: dict, top: int = 5) -> list[tuple[str, float]]:
-    """Features whose answer pushes the linear score up, largest first."""
+    """Features whose answer pushes the linear score up and is not a plainly healthy answer, largest first."""
     out = []
     for f, c, m, s in zip(explainer["features"], explainer["coef"], explainer["mean"], explainer["scale"]):
-        if f in values and s:
+        if f in values and s and not HEALTHY.get(f, lambda v: False)(values[f]):
             contrib = c * (values[f] - m) / s
             if contrib > 0:
                 out.append((f"{FEATURES[f]['short']}: {answers[f]}", contrib))
@@ -658,7 +694,7 @@ def risk_meter(p: float, bands: dict) -> go.Figure:
         fig.add_shape(type="rect", x0=x0 + (gap if x0 else 0), x1=x1 - (gap if x1 < 1 else 0), y0=-0.5, y1=0.5,
                       fillcolor=color, line_width=0, layer="below")
         fig.add_annotation(x=(x0 + x1) / 2, y=-1.15, text=name, showarrow=False, font=dict(size=13, color=INK_2))
-    fig.add_trace(go.Scatter(x=[p], y=[0], mode="markers", hovertemplate=f"Your estimate: {p:.0%}<extra></extra>",
+    fig.add_trace(go.Scatter(x=[min(max(p, 0.03), 0.97)], y=[0], mode="markers", hovertemplate=f"Your estimate: {p:.0%}<extra></extra>",
                              marker=dict(size=18, color=INK, line=dict(color=SURFACE, width=3))))
     fig.update_layout(height=96, margin=dict(l=4, r=4, t=8, b=4), showlegend=False,
                       xaxis=dict(range=[-0.02, 1.02], tickvals=[lo, hi], ticktext=[f"{lo:.0%}", f"{hi:.0%}"], side="top",
@@ -671,6 +707,7 @@ def risk_meter(p: float, bands: dict) -> go.Figure:
 def factors_chart(factors: list) -> go.Figure:
     """Ranked single-series bars: one color, value at the tip as share of the total increase."""
     labels, scores = zip(*reversed(factors))
+    labels = ["<br>".join(textwrap.wrap(lb, 22)) for lb in labels]
     total = sum(scores)
     shares = [s / total for s in scores]
     fig = go.Figure(go.Bar(x=shares, y=labels, orientation="h", width=0.5,
@@ -678,9 +715,10 @@ def factors_chart(factors: list) -> go.Figure:
                            text=[f"{s:.0%}" for s in shares], textposition="outside", cliponaxis=False,
                            textfont=dict(size=13, color=INK),
                            hovertemplate="%{y}<br>%{x:.0%} of the increase<extra></extra>"))
-    fig.update_layout(height=40 + 44 * len(factors), margin=dict(l=0, r=40, t=4, b=4),
+    fig.update_layout(height=40 + 52 * len(factors), margin=dict(l=0, r=40, t=4, b=4),
                       xaxis=dict(visible=False, range=[0, max(shares) * 1.15], fixedrange=True),
-                      yaxis=dict(tickfont=dict(size=14, color=INK), showgrid=False, ticks="", ticklabelstandoff=8, fixedrange=True),
+                      yaxis=dict(tickfont=dict(size=13, color=INK), showgrid=False, ticks="", ticklabelstandoff=8, fixedrange=True,
+                                 automargin=True),
                       plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                       hoverlabel=dict(bgcolor=SURFACE, bordercolor=LINE, font=dict(color=INK, size=13)))
     return fig
@@ -747,7 +785,10 @@ def what_if(model, features: list[str], values: dict, bands: dict, prefix: str, 
             p2 = score(model, features, new)
             now, after = st.columns(2)
             now.metric("Now", f"{p:.0%}", risk_band(p, bands), delta_color="off")
-            after.metric(f"With changes: {risk_band(p2, bands)}", f"{p2:.0%}", f"{(p2 - p) * 100:+.1f} points", delta_color="inverse")
+            d = round((p2 - p) * 100, 1)
+            # a change that rounds to 0 would show a red "+0.0" arrow, so show no delta then
+            after.metric(f"With changes: {risk_band(p2, bands)}", f"{p2:.0%}", f"{d:+.1f} points" if d else "No change",
+                         delta_color="inverse" if d else "off")
         st.markdown('<div class="note">This shows an association in survey data, not a guaranteed effect. '
                     'Talk to a doctor before making changes to treatment or lifestyle.</div>', unsafe_allow_html=True)
 
@@ -798,7 +839,7 @@ def chart_layout(fig: go.Figure, height: int, **kw) -> go.Figure:
     fig.update_layout(height=height, margin=dict(l=8, r=8, t=8, b=8), plot_bgcolor="rgba(0,0,0,0)",
                       paper_bgcolor="rgba(0,0,0,0)", font=dict(color=INK, size=13),
                       hoverlabel=dict(bgcolor=SURFACE, bordercolor=LINE, font=dict(color=INK, size=13)),
-                      legend=dict(orientation="h", y=1.08, x=0, font=dict(color=INK_2)), **kw)
+                      legend=kw.pop("legend", dict(orientation="h", y=1.08, x=0, font=dict(color=INK_2))), **kw)
     fig.update_xaxes(showgrid=False, linecolor=LINE, tickfont=dict(color=INK_2), fixedrange=True)
     fig.update_yaxes(gridcolor=LINE, gridwidth=1, zeroline=False, tickfont=dict(color=INK_2), fixedrange=True)
     return fig
@@ -832,11 +873,12 @@ def segments_section(seg: dict):
         pts["slot"] = pts["segment"].map(order).fillna(len(CATEGORICAL)).astype(int)
         for slot, grp in pts.groupby("slot"):
             color, other = segment_color(slot)
-            name = "Other" if other else segs[slot]["name"]
-            fig.add_trace(go.Scattergl(x=grp["x"], y=grp["y"], mode="markers", name=name, text=grp["label"],
+            name = "<br>".join(textwrap.wrap("Other" if other else segs[slot]["name"], 34))  # plotly legends never wrap on their own
+            fig.add_trace(go.Scatter(x=grp["x"], y=grp["y"], mode="markers", name=name, text=grp["label"],
                                        hovertemplate="%{text}<extra></extra>",
                                        marker=dict(size=8, color=color, opacity=0.75, line=dict(color=SURFACE, width=1))))
-        chart_layout(fig, 380)
+        chart_layout(fig, 440, legend=dict(orientation="h", x=0, y=-0.08, yanchor="top", font=dict(color=INK_2, size=12)))
+        fig.update_layout(margin=dict(l=8, r=8, t=8, b=8))
         fig.update_xaxes(title=dict(text=f"Main pattern 1 ({ev[0]:.0%} of variation)", font=dict(color=INK_2, size=12)),
                          showticklabels=False)
         fig.update_yaxes(title=dict(text=f"Main pattern 2 ({ev[1]:.0%} of variation)", font=dict(color=INK_2, size=12)),
@@ -887,10 +929,14 @@ def cost_section(curve: dict, meta: dict):
             fig.add_trace(go.Scatter(x=[t], y=[q[key]], mode="markers", showlegend=False, hoverinfo="skip",
                                      marker=dict(size=10, color=CATEGORICAL[i], line=dict(color=SURFACE, width=2))))
         fig.add_vline(x=t, line=dict(color=INK, width=1.5))
-        fig.add_annotation(x=t, y=1.04, text=f"Cut-off {t:.0%}", showarrow=False, font=dict(color=INK, size=12), yref="y")
-        chart_layout(fig, 320, hovermode="x unified")
+        fig.add_annotation(x=t, y=0.97, text=f"Cut-off {t:.0%}", showarrow=False, xanchor="left" if t < 0.6 else "right",
+                           xshift=8 if t < 0.6 else -8, bgcolor=SURFACE, bordercolor=LINE, borderpad=4,
+                           font=dict(color=INK, size=12), yref="y")
+        chart_layout(fig, 360, hovermode="x unified",
+                     legend=dict(orientation="h", x=0, y=-0.2, yanchor="top", font=dict(color=INK_2, size=12)))
         fig.update_xaxes(tickformat=".0%", title=dict(text="Cut-off", font=dict(color=INK_2, size=12)))
-        fig.update_yaxes(tickformat=".0%", range=[0, 1.08])
+        fig.update_yaxes(tickformat=".0%", range=[0, 1.04])
+        fig.update_layout(margin=dict(l=8, r=8, t=8, b=8))
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="ins_curve")
 
 
@@ -913,10 +959,12 @@ def trends_section(my: dict | None, states: pd.DataFrame | None):
                 st.markdown('<div class="card-title" style="font-size:17px">Does the model hold up in later years?</div>'
                             '<div class="muted">Trained on earlier survey years, then tested on a later year it never saw.</div>',
                             unsafe_allow_html=True)
-                table = pd.DataFrame([{"Trained on": years_label(r["train_years"]), "Tested on": str(r["test_year"]),
-                                       "ROC-AUC": r["roc_auc"], "Recall": r["recall"], "Precision": r["precision"]} for r in tv])
-                st.dataframe(table.style.format({"ROC-AUC": "{:.3f}", "Recall": "{:.0%}", "Precision": "{:.0%}"}, na_rep="n/a"),
-                             width="stretch", hide_index=True)
+                f = lambda v, fmt: "n/a" if v is None else fmt.format(v)  # noqa: E731
+                rows = "".join(f'<tr><td>{html.escape(years_label(r["train_years"]))}</td><td>{r["test_year"]}</td>'
+                               f'<td>{f(r.get("roc_auc"), "{:.3f}")}</td><td>{f(r.get("recall"), "{:.0%}")}</td>'
+                               f'<td>{f(r.get("precision"), "{:.0%}")}</td></tr>' for r in tv)
+                st.markdown('<table class="vtable"><thead><tr><th>Trained on</th><th>Tested on</th><th>ROC-AUC</th><th>Recall</th>'
+                            f'<th>Precision</th></tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
                 if summary := drift_summary(my):
                     st.markdown(summary)
     if states is not None and not states.empty:
@@ -1178,8 +1226,10 @@ def stats_bento(meta: dict, opt: dict) -> str:
             line = " ".join(f"{sx(y):.1f},{sy(a):.1f}" for y, a in pts)
             # first point is the training year's held-out test split, not an unseen year: drawn hollow and labelled
             marks = "".join(f'<circle{" class=\"base\"" if i == 0 else ""} cx="{sx(y):.1f}" cy="{sy(a):.1f}" r="2.6"/>'
-                            f'<text x="{sx(y):.1f}" y="80">{y}{" test" if i == 0 else ""}</text>' for i, (y, a) in enumerate(pts))
-            spark = (f'<svg class="spark" viewBox="0 0 300 86" role="img" aria-label="ROC-AUC by survey year, from '
+                            f'<text x="{sx(y):.1f}" y="78">{y}{f"<tspan x={sx(y):.1f} dy=1.15em>test</tspan>" if i == 0 else ""}</text>'
+                            for i, (y, a) in enumerate(pts))
+            marks += "".join(f'<text class="val" x="{sx(y):.1f}" y="{sy(a) - 7:.1f}">{a:.2f}</text>' for y, a in (pts[0], pts[-1]))
+            spark = (f'<svg class="spark" viewBox="0 0 300 98" role="img" aria-label="ROC-AUC by survey year, from '
                      f'{pts[0][1]:.2f} to {pts[-1][1]:.2f}"><polyline points="{line}"/>{marks}</svg>')
         later = [y for y in years if y != meta.get("data_year")]
         tiles.append(f'<div class="tile t-d rv" style="--i:3"><div class="tile-num sm">Held up on {len(later)} later survey years, '
@@ -1239,10 +1289,13 @@ def metric_tiles(metrics: dict, names: dict, shown: dict) -> str:
         rows = [(names.get(k, k), m.get(mk)) for k, m in metrics.items() if is_num(m.get(mk))]
         if not rows:
             continue
-        hi = max(v for _, v in rows) or 1
-        bars = "".join(f'<div class="mt-row{" base" if n == "Baseline" else ""}"><span>{n}</span><i style="--w:{v / hi:.0%}"></i>'
+        low_best = mk == "brier"
+        hi, lo = max(v for _, v in rows) or 1, min(v for _, v in rows)
+        width = (lambda v: lo / v if v else 1) if low_best else (lambda v: v / hi)
+        bars = "".join(f'<div class="mt-row{" base" if n == "Baseline" else ""}"><span>{n}</span><i style="--w:{width(v):.0%}"></i>'
                        f'<b>{fmt.format(v)}</b></div>' for n, v in rows)
-        tiles.append(f'<div class="mtile rv"><div class="mt-label">{label}</div>{bars}</div>')
+        note = '<span class="mt-note">lower is better, longest bar = best</span>' if low_best else ""
+        tiles.append(f'<div class="mtile rv"><div class="mt-label">{label}{note}</div>{bars}</div>')
     return f'<div class="mtiles">{"".join(tiles)}</div>'
 
 

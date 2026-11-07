@@ -67,6 +67,9 @@ MEASURE = r"""() => {
     if (ix > 2 && iy > 2) { const k = a.t + '|' + b.t; if (!seen.has(k)) { seen.add(k); out.overlaps.push(`"${a.t}" x "${b.t}"`); } }
   }
   out.overlaps = out.overlaps.slice(0, 8);
+  out.plots = [...document.querySelectorAll('.js-plotly-plot')].filter(vis).length;
+  out.webgl = document.querySelectorAll('.js-plotly-plot canvas, canvas.gl-canvas').length
+    + (/webgl is not supported/i.test(document.body.innerText) ? 1 : 0);
   out.notFound = [...document.querySelectorAll('[role="dialog"], [data-testid="stDialog"], [data-baseweb="modal"]')]
     .filter(vis).map(e => e.innerText.trim()).filter(t => /page not found/i.test(t)).map(t => t.slice(0, 80))
     .concat(/page not found/i.test(document.body.innerText) && !document.querySelector('[role="dialog"]') ? ['"Page not found" text on page'] : []);
@@ -165,21 +168,27 @@ def prepare(page, base, path, tab):
         page.get_by_role("button", name=re.compile("check my risk", re.I)).filter(visible=True).first.click()
         settle(page, 1500)
         # what-if open: move the weight slider 15 kg down so the before/after state is on screen
-        slider = page.locator('[class*="whatif"] [role="slider"]').filter(visible=True)
+        # Streamlit 1.67 sliders are a hidden input[type=range] (no role=slider); keyboard on it, as demo/record.py does
+        slider = page.locator('[class*="whatif"] input[type="range"]')
         if slider.count():
             slider.first.focus()
-            slider.first.press("ArrowLeft")
-            for _ in range(14):
+            for _ in range(15):
                 slider.first.press("ArrowLeft")
-            settle(page, 1200)
+            settle(page, 1500)
     if path == "population-insights":
         page.locator(".js-plotly-plot").last.wait_for(state="visible", timeout=30000)
         page.wait_for_timeout(1500)
     page.evaluate("() => { document.querySelectorAll('*').forEach(e => { if (e.scrollTop) e.scrollTop = 0; }); }")
 
 
-def check(m):
+def check(m, name=""):
     fails = []
+    # insights swallows chart errors, so a chart can vanish without any app error: count them
+    if name == "insights":
+        if m["plots"] < 4:
+            fails.append(f"insights shows {m['plots']} Plotly charts, want >= 4 (scatter, cost, trend, map)")
+        if m["webgl"]:
+            fails.append(f"WebGL canvas / 'WebGL is not supported' present ({m['webgl']})")
     if m["notFound"]:
         fails.append(f"'Page not found' dialog present: {m['notFound']}")
     nav, h1, nf = m["nav"], m["h1"], m["navFirst"]
@@ -224,7 +233,12 @@ def contact_sheets(out, col_w=480):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="G:/Temp/edge_final/visual")
-    out = Path(ap.parse_args().out)
+    ap.add_argument("--sizes", default="", help="comma-separated widths to run, e.g. 768,375,1366 (default: all)")
+    args = ap.parse_args()
+    out = Path(args.out)
+    if args.sizes:
+        SIZES[:] = [s for s in SIZES if str(s[0]) in args.sizes.split(",")]  # contact_sheets reads SIZES too
+        assert SIZES, f"no known width in --sizes {args.sizes}"
     out.mkdir(parents=True, exist_ok=True)
     port = free_port(8650)
     server = start_server(port)
@@ -243,7 +257,7 @@ def main():
                         prepare(rpage, base, path, tab)
                         # Layout + screenshot on the reduced-motion page: deterministic end states, nothing mid-animation.
                         m = rpage.evaluate(MEASURE)
-                        fails = check(m)
+                        fails = check(m, name)
                         # Motion page: count-ups end right, nothing left at opacity 0 after scrolling.
                         mfails, n_counts = motion_checks(page, rpage, name)
                         fails += mfails
@@ -257,6 +271,7 @@ def main():
                     except Exception as e:  # one broken page must not hide the others
                         m, fails = {}, [f"could not render: {type(e).__name__}: {str(e)[:200]}"]
                     results.append({"page": name, "size": f"{w}x{h}", "shot": str(shot), "fails": fails, "countups": m.get("countups"),
+                                    "plots": m.get("plots"), "webgl": m.get("webgl"),
                                     "h1": m.get("h1"), "nav": m.get("nav"), "navFirst": m.get("navFirst")})
                     print(f"[{'FAIL' if fails else 'PASS'}] {name:11} {w}x{h}" + "".join(f"\n    - {f}" for f in fails))
                 ctx.close()

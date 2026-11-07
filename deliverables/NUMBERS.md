@@ -64,7 +64,7 @@ The deck reads these values from the files when it is built, so the slides refre
 
 | Number shown | Where | Source file | Key or derivation |
 |---|---|---|---|
-| Years 2015, 2017, 2019, 2021, 2025 | S10 | `models/multiyear.json` | `years` |
+| Years 2015, 2017, 2019, 2021, 2025; "4 later survey years" | S10, LI | `models/multiyear.json` | `years` |
 | 1,210,322 rows | S10 | `models/multiyear.json` | `total_rows` |
 | Saved model ROC-AUC 0.831 / 0.824 / 0.819 / 0.803 (2017/2019/2021/2025; file stores 0.8305, so 3-decimal display is 0.831) | S10 | `models/multiyear.json` | `temporal_validation[train_years="BRFSS 2015"]`.roc_auc` = 0.8305 / 0.8242 / 0.8185 / 0.8033 |
 | Recall 0.789 / 0.781 / 0.760 / 0.761 (2017/2019/2021/2025) | S10 | `models/multiyear.json` | same rows, `recall` = 0.7888 / 0.7811 / 0.7603 / 0.7613 |
