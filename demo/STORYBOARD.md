@@ -43,3 +43,17 @@ If a take runs past 59 s (slow reruns on a loaded machine), post-processing spee
 Narration lines are in `VOICEOVER.md`. `voiceover.py all` renders them and re-records with each scene held until its line ends.
 It then writes `demo_1080p_vo.mp4` and `demo_square_vo.mp4` (AAC 160 kbps, 48 kHz, -16 LUFS). The silent MP4s and the GIF stay too.
 A validation scene, after the cost planner, shows the multi-year summary with the caption "Checked on 4 later survey years: ROC-AUC held above 0.80."
+
+## v2: story voiceover and post-production effects
+- Script and claim sources: `VOICEOVER.md`. Voice: `en-US-AndrewMultilingualNeural`, with per-line rate and pitch.
+- `record.py` logs clicks, page changes and zoom focus areas to `build/events.json`. It shows a soft ring on each click target and a quick veil on page changes. The intro and outro cards are animated: the logo draws in, then the wordmark, then the hook; the outro has a "Try it" button.
+- `effects.py` builds the frame:
+  - a browser window mockup at 88% width on a drifting navy-to-teal gradient
+  - eased 1.25 to 1.35x zooms on typing, the result, the what-if and the map
+  - the intro and outro full frame, cross-fading with the window
+  - lower-third captions of the narration, each word lighting up as it is spoken
+- `voiceover.py mix`:
+  - voice, plus music ducked about 4 dB under speech (sidechain), with a 1.5 s fade-in and 2 s fade-out
+  - synthesised clicks and whooshes at low level
+  - two-pass loudness normalisation to -14 LUFS, true peak -1.5 dB
+- One command: `.venv/Scripts/python demo/voiceover.py all --live-url URL --music PATH`

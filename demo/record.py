@@ -51,7 +51,7 @@ CAPTIONS = {
 # Voiceover sync: demo/voiceover.py writes each scene's narration length here. Each scene then lasts at least
 # VO_LEAD + clip + VO_TAIL seconds, and post-processing keeps real time so the audio lines up.
 TIMINGS_FILE = ROOT / "demo" / "build" / "timings.json"
-VO_LEAD, VO_TAIL = 0.3, 0.45
+VO_LEAD, VO_TAIL = 0.25, 0.3
 CUT_SKIP = 0.9  # the cut starts this long after the intro mark (loading page and card fade-in)
 
 
@@ -134,6 +134,35 @@ OVERLAY_JS = r"""
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
     #demo-card .link b { color: #67E8F9; margin-right: 14px; font-weight: 600; }
     #demo-card .disc { font-family: 'Noto Sans', 'Segoe UI', sans-serif; font-size: 26px; color: #C6DCE4; margin-top: 56px; }
+    .demo-ring { position: fixed; border-radius: 12px; pointer-events: none; z-index: 2147483645; opacity: 0; transform: scale(1.08);
+      box-shadow: 0 0 0 3px rgba(103,232,249,0.95), 0 0 26px 8px rgba(14,116,144,0.30);
+      transition: opacity 160ms ease, transform 240ms cubic-bezier(.2,.8,.2,1); }
+    .demo-ring.on { opacity: 1; transform: none; }
+    #demo-veil { position: fixed; inset: 0; background: #F4F7F9; opacity: 0; pointer-events: none; z-index: 2147483643;
+      transition: opacity 220ms ease; }
+    #demo-veil.on { opacity: 0.94; }
+    #demo-card.intro .wrap, #demo-card.outro .wrap { text-align: center; }
+    #demo-card.intro .brand { justify-content: center; font-size: 66px; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+    #demo-card.intro .logo svg { height: 116px; }
+    #demo-card.intro .hook { font-size: 72px; margin-top: 64px; }
+    #demo-card .draw svg { animation: demo-pop 600ms cubic-bezier(.2,.9,.3,1.25) both; }
+    #demo-card .draw svg path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: demo-draw 700ms cubic-bezier(.65,0,.35,1) forwards; }
+    #demo-card .draw svg path:nth-of-type(1) { animation-delay: 250ms; }
+    #demo-card .draw svg path:nth-of-type(2) { animation-delay: 400ms; }
+    #demo-card .draw svg path:nth-of-type(3) { animation-delay: 550ms; }
+    #demo-card .draw svg circle, #demo-card .draw svg rect:not(:first-child) { opacity: 0; animation: demo-fade 300ms ease 950ms forwards; }
+    #demo-card .wm { display: inline-block; opacity: 0; transform: translateX(-18px); animation: demo-slide 520ms ease 700ms forwards; }
+    @keyframes demo-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes demo-draw { to { stroke-dashoffset: 0; } }
+    @keyframes demo-fade { to { opacity: 1; } }
+    @keyframes demo-slide { to { opacity: 1; transform: none; } }
+    #demo-card .try { display: inline-flex; align-items: center; gap: 24px; margin-top: 60px; padding: 12px 30px 12px 12px;
+      border-radius: 999px; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+    #demo-card .btn { background: #67E8F9; color: #0C3646; font-size: 32px; font-weight: 700; padding: 16px 32px; border-radius: 999px;
+      animation: demo-glow 1.6s ease-in-out 1.2s infinite; }
+    #demo-card .url { font-size: 34px; font-weight: 600; }
+    #demo-card .gh { font-family: 'Noto Sans', 'Segoe UI', sans-serif; font-size: 26px; color: #C6DCE4; margin-top: 30px; }
+    @keyframes demo-glow { 50% { box-shadow: 0 0 0 10px rgba(103,232,249,0.18), 0 0 40px rgba(103,232,249,0.35); } }
   `;
   document.head.appendChild(css);
   const font = document.createElement('link');
@@ -143,6 +172,7 @@ OVERLAY_JS = r"""
   const cur = document.createElement('div'); cur.id = 'demo-cursor'; document.body.appendChild(cur);
   const cap = document.createElement('div'); cap.id = 'demo-caption'; document.body.appendChild(cap);
   const txt = document.createElement('span'); cap.appendChild(txt);
+  const veil = document.createElement('div'); veil.id = 'demo-veil'; document.body.appendChild(veil);
   let x = 960, y = 540, current = '';
   const place = () => { cur.style.transform = `translate(${x}px, ${y}px)`; };
   place();
@@ -166,8 +196,16 @@ OVERLAY_JS = r"""
       let c = document.getElementById('demo-card');
       if (!c) { c = document.createElement('div'); c.id = 'demo-card'; document.body.appendChild(c); }
       c.className = (cls || '') + ' hide'; c.innerHTML = html;
+      c.querySelectorAll('.draw svg path').forEach(p => p.setAttribute('pathLength', '1'));
       requestAnimationFrame(() => requestAnimationFrame(() => c.classList.remove('hide')));
     },
+    ring(b) {  // soft highlight around a click target
+      const r = document.createElement('div'); r.className = 'demo-ring';
+      Object.assign(r.style, { left: (b.x - 6) + 'px', top: (b.y - 6) + 'px', width: (b.width + 12) + 'px', height: (b.height + 12) + 'px' });
+      document.body.appendChild(r); requestAnimationFrame(() => r.classList.add('on'));
+      setTimeout(() => { r.classList.remove('on'); setTimeout(() => r.remove(), 300); }, 520);
+    },
+    veil(on) { veil.classList.toggle('on', on); },
     uncard() {
       const c = document.getElementById('demo-card'); if (!c) return;
       c.classList.add('hide'); setTimeout(() => c.remove(), 750);
@@ -206,20 +244,18 @@ def wordmark(name: str) -> str:
 
 
 def intro_html(name: str, n_rows: str) -> str:
-    sub = f"A one-minute risk check built on {n_rows} CDC survey responses." if n_rows else \
-        "A one-minute risk check built on CDC survey data."
-    return (f'<div class="wrap"><div class="hook rise" style="animation-delay:150ms">Millions of adults have diabetes<br>'
-            f'<em>and don\'t know it.</em></div>'
-            f'<div class="sub rise" style="animation-delay:1100ms">{sub}</div>'
-            f'<div class="brand rise" style="animation-delay:1900ms">{brand_html(name)}</div></div>')
+    """Logo mark draws in, the wordmark slides in, then the hook (CDC: 27.6% of adults with diabetes are undiagnosed)."""
+    return (f'<div class="wrap"><div class="brand draw">{logo_html()}<span class="wm">{wordmark(name)}</span></div>'
+            f'<div class="hook rise" style="animation-delay:1300ms">More than 1 in 4 adults with diabetes<br>'
+            f'<em>don\'t know they have it.</em></div></div>')
 
 
 def outro_html(name: str, live: str, github: str) -> str:
     live, github = (re.sub(r"^https?://(www\.)?", "", u).rstrip("/") for u in (live, github))  # shorter on screen
     return (f'<div class="wrap"><div class="brand rise" style="animation-delay:100ms">{brand_html(name)}</div>'
-            f'<div class="links rise" style="animation-delay:700ms"><span class="link"><b>Live app</b>{live}</span>'
-            f'<span class="link"><b>GitHub</b>{github}</span></div>'
-            f'<div class="disc rise" style="animation-delay:1300ms">Screening aid, not a medical diagnosis.</div></div>')
+            f'<div class="try rise" style="animation-delay:600ms"><span class="btn">Try it &rarr;</span><span class="url">{live}</span></div>'
+            f'<div class="gh rise" style="animation-delay:1000ms">Code on GitHub: {github}</div>'
+            f'<div class="disc rise" style="animation-delay:1400ms">Screening aid, not a medical diagnosis.</div></div>')
 
 
 # ---------------------------------------------------------------- director
@@ -235,6 +271,7 @@ class Director:
         self.page, self.record, self.base = page, record, base_url
         self.t0 = time.monotonic()
         self.scenes: list[dict] = []
+        self.events: list[dict] = []  # clicks, page changes and zoom focus, for the post-processing effects
         self.timings = json.loads(TIMINGS_FILE.read_text(encoding="utf-8")) if record and TIMINGS_FILE.exists() else {}
         self.x, self.y = W / 2, H / 2
 
@@ -253,8 +290,27 @@ class Director:
             self.pause(max(0, int((prev["t"] + need - self.now()) * 1000)))
         self.scenes.append({"name": name, "t": self.now()})
         print(f"  {self.now():6.2f}s  {name}", flush=True)
-        if self.record and caption is not None:
-            self.page.evaluate("t => window.__demo.caption(t)", caption)
+        # captions are the narration itself, burned in with word timing during post-processing
+
+    def ev(self, kind: str, **kw):
+        self.events.append({"type": kind, "t": self.now(), **kw})
+
+    def focus(self, *locs: Locator | None, z: float = 1.3):
+        """Zoom the final video onto the union of these elements (viewport coordinates)."""
+        boxes = [b for b in (loc.bounding_box() for loc in locs if loc is not None) if b]
+        if boxes:
+            x0, y0 = min(b["x"] for b in boxes), min(b["y"] for b in boxes)
+            x1, y1 = max(b["x"] + b["width"] for b in boxes), max(b["y"] + b["height"] for b in boxes)
+            self.ev("focus", x=(x0 + x1) / 2, y=(y0 + y1) / 2, w=x1 - x0, h=y1 - y0, z=z)
+
+    def unfocus(self):
+        self.ev("focus", x=W / 2, y=H / 2, w=W, h=H, z=1.0)
+
+    def page_change(self, on: bool):
+        if self.record:
+            self.page.evaluate("on => window.__demo.veil(on)", on)
+            if on:
+                self.ev("whoosh")
 
     def overlay(self):
         self.page.evaluate("""() => { if (document.getElementById('demo-margin')) return;
@@ -339,7 +395,12 @@ class Director:
             try:
                 loc.wait_for(state="visible", timeout=15000)
                 self.hover(loc)
+                if self.record:
+                    box = loc.bounding_box()
+                    if box and box["width"] < W * 0.6:
+                        self.page.evaluate("b => window.__demo.ring(b)", box)
                 self.pause(110)
+                self.ev("click")
                 self.page.mouse.down()
                 self.pause(90)
                 self.page.mouse.up()
@@ -420,7 +481,9 @@ def go_to_page(d: Director, name: str) -> bool:
                              d.page.get_by_role("button", name=pat), timeout=3000)
     if target:
         d.click(target)
+        d.page_change(True)
         d.idle(500)
+        d.page_change(False)
         return True
     hidden = d.page.locator("a", has_text=pat)
     if hidden.count() and hidden.first.get_attribute("href"):
@@ -483,8 +546,10 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
         d.mark("start", CAPTIONS["start"])
         d.scroll_to(start)
         d.click(start)
+        d.page_change(True)
         d.idle(600)
         d.overlay()  # no-op unless the page reloaded
+        d.page_change(False)
         d.pause(300)
     else:
         print("    no 'Start your risk check' control: skipping the start scene", flush=True)
@@ -496,12 +561,14 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     # Quick check
     d.mark("fill", CAPTIONS["fill"])
     # Real use on screen: type, click toggles, open a dropdown. Blood pressure Yes also unlocks the what-if toggle.
+    d.focus(d.widget("Age (years)"), d.widget("Weight (kg)"), z=1.35)
     d.type_into(d.widget("Age (years)"), PERSONA["age"])
     sex = d.widget("Sex")
     d.click(sex.locator("button").filter(has_text=re.compile(r"^\s*Male\s*$")))
     d.idle()
     d.type_into(d.widget("Height (cm)"), PERSONA["height"])
     d.type_into(d.widget("Weight (kg)"), PERSONA["weight"])
+    d.unfocus()
     for label in ("high blood pressure", "high cholesterol"):
         w = d.widget(label)
         d.scroll_to(w)
@@ -524,13 +591,15 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
         raise RuntimeError("result did not appear")
     d.mark("result", CAPTIONS["result"])
     d.scroll_to(risk, "center")
+    bars = d.first_visible(page.get_by_text("What raised your score", exact=True), timeout=3000)
+    d.focus(risk, bars, z=1.3)
     d.hover(risk, 0.6, 3)
     d.pause(900)
-    bars = d.first_visible(page.get_by_text("What raised your score", exact=True), timeout=3000)
     if bars:
         d.hover(bars, 0.3, 4)
         d.pause(600)
     d.pause(300)
+    d.unfocus()
     d.shot("result")
 
     # What-if
@@ -538,6 +607,7 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     active = page.get_by_text("If you exercised regularly", exact=True).filter(visible=True).count() > 0
     d.mark("whatif", CAPTIONS["whatif" if active else "whatif_bp"])
     d.scroll_to(weight)
+    d.focus(weight, z=1.35)
     d.drag_slider(weight, value=PERSONA["weight_after"])
     d.pause(300)
     habit = d.first_visible(page.get_by_text("If you exercised regularly", exact=True),
@@ -548,8 +618,10 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     after = d.first_visible(page.get_by_text(re.compile("^With changes")), timeout=8000)
     if after:
         d.scroll_to(after)
+        d.focus(weight, after, z=1.3)
         d.hover(after, 0.5, 1.5)
     d.pause(700)
+    d.unfocus()
     d.shot("whatif")
 
     # Population insights
@@ -579,15 +651,18 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
         valid = d.first_visible(page.get_by_text(re.compile("hold up in later years")), timeout=2000)
         if valid:  # heading at the top, so the ROC-AUC table below it is on screen
             d.mark("validation", CAPTIONS["validation"])
-            d.scroll_to(valid, "start")
-            d.pause(600)
             year = d.widget("Survey year")  # the map sits beside the table: switch its year, then hover a state
+            # the year slider tops the map card, so scrolling it to the top shows the whole map and the table beside it
+            d.scroll_to(year if year.count() else valid, "start")
+            d.pause(600)
             if year.count():
-                d.drag_slider(year, frac=0.0)
                 chart = d.first_visible(page.locator('[class*="st-key-ins_choropleth"]'), timeout=3000)
+                d.focus(year, chart, z=1.25)
+                d.drag_slider(year, frac=0.0)
                 if chart:
                     d.hover(chart, 0.55, 0.5)
                     d.pause(700)
+                d.unfocus()
             else:
                 d.pause(900)
         else:
@@ -604,8 +679,9 @@ def _story(d: Director, name: str, n_rows: str, live: str, github: str):
     # Outro
     if d.record:
         page.evaluate("() => { window.__demo.caption(''); window.__demo.cursor(false); }")
+    d.mark("outro")  # waits for the validation line first, so the card never shows inside the window
+    if d.record:
         page.evaluate("([h, c]) => window.__demo.card(h, c)", [outro_html(name, live, github), "outro"])
-    d.mark("outro")
     d.pause(4500)
     d.mark("end")
 
@@ -665,6 +741,7 @@ def run(args) -> tuple[Path | None, list]:
                 raw = BUILD / "raw.webm"
                 shutil.move(video, raw)
                 (BUILD / "scenes.json").write_text(json.dumps(d.scenes, indent=2), encoding="utf-8")
+                (BUILD / "events.json").write_text(json.dumps(d.events, indent=2), encoding="utf-8")
                 return raw, d.scenes
             finally:
                 browser.close()
@@ -690,42 +767,17 @@ def probe_duration(path: Path) -> float:
 
 
 def post(raw: Path, scenes: list):
+    """Plain cut of the take (build/cut.mp4). voiceover.py mix turns it into the framed, zoomed, narrated outputs."""
     t = {s["name"]: s["t"] for s in scenes}
     start = t["intro"] + CUT_SKIP
     dur = t["end"] - start
-    # Rerun speed varies with machine load; a uniform speed-up of up to ~15% keeps the cut under 60 s unnoticed.
-    # Uniform speed-up, at most 10%, keeps the cut under 60 s; voiceover.py speeds the narration by the same k.
+    # Uniform speed-up, at most 10%, keeps the cut near 60 s; voiceover.py speeds the narration by the same k.
     k = max(1.0, min(1.10, dur / 59.5))
     (BUILD / "cut.json").write_text(json.dumps({"start": start, "k": k, "dur": dur / k}), encoding="utf-8")
-    rel = {n: (v - start) / k for n, v in t.items()}
-    x264 = ["-c:v", "libx264", "-preset", "slow", "-crf", "18", "-profile:v", "high", "-level", "4.1",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"]
-    main = DEMO / "demo_1080p.mp4"
-    print(f"encoding demo_1080p.mp4 ({dur:.1f}s take at {k:.2f}x)", flush=True)
+    print(f"encoding build/cut.mp4 ({dur:.1f}s take at {k:.2f}x)", flush=True)
     ff("-ss", f"{start:.3f}", "-i", raw, "-t", f"{dur:.3f}",
-       "-vf", f"setpts=PTS/{k:.4f},fps=30,scale=1920:1080:flags=lanczos,format=yuv420p", "-r", "30", *x264, main)
-
-    print("encoding demo_square.mp4", flush=True)
-    ff("-i", main, "-vf", "scale=1080:-2:flags=lanczos,pad=1080:1080:0:(oh-ih)/2:color=0x0C3646,format=yuv420p",
-       "-r", "30", *x264, DEMO / "demo_square.mp4")
-
-    # GIF: fill -> result -> what-if, sped up to fit about 14 s.
-    g0, g1 = rel["result"] - 2.5, rel.get("segments") or rel["outro"]
-    speed = max(1.0, (g1 - g0) / 14.0)
-    print(f"encoding demo.gif ({g1 - g0:.1f}s at {speed:.2f}x)", flush=True)
-    vf = f"setpts=PTS/{speed:.3f},fps=12,scale=960:-1:flags=lanczos"
-    pal = BUILD / "palette.png"
-    ff("-ss", f"{g0:.3f}", "-t", f"{g1 - g0:.3f}", "-i", main, "-vf", f"{vf},palettegen=max_colors=128:stats_mode=diff", pal)
-    ff("-ss", f"{g0:.3f}", "-t", f"{g1 - g0:.3f}", "-i", main, "-i", pal, "-lavfi",
-       f"{vf}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle", DEMO / "demo.gif")
-
-    print("writing thumbnail.png", flush=True)
-    ff("-ss", f"{rel['whatif'] - 0.6:.3f}", "-i", main, "-frames:v", "1", DEMO / "thumbnail.png")
-
-    for f in ("demo_1080p.mp4", "demo_square.mp4", "demo.gif", "thumbnail.png"):
-        p = DEMO / f
-        extra = f", {probe_duration(p):.1f}s" if p.suffix in (".mp4", ".gif") else ""
-        print(f"  {p.relative_to(ROOT)}: {p.stat().st_size / 1e6:.2f} MB{extra}", flush=True)
+       "-vf", f"setpts=PTS/{k:.4f},fps=30,scale=1920:1080:flags=lanczos,format=yuv420p", "-r", "30",
+       "-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-an", BUILD / "cut.mp4")
 
 
 def main():

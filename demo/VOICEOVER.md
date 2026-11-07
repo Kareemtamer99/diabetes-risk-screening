@@ -1,77 +1,76 @@
-# SugarScope demo: voiceover script
+# SugarScope demo: voiceover script (v2)
 
-For a hiring manager: plain, confident, one idea per scene. About 120 words over the roughly 58 s cut.
-Voice: `en-US-AndrewNeural`, chosen by the user (the comparison samples are in `voice_samples/`).
+Told as a short story for a hiring manager: problem, idea, you using it, the aha, the bigger picture, proof, call to action.
+Voice: `en-US-AndrewMultilingualNeural`, chosen by the user. About 120 words over roughly 60 to 65 s.
 
-How this file is used: `demo/voiceover.py` reads every `## scene` heading and the `>` line under it.
-- Only the `>` line is spoken.
-- `say:` (optional) is how the line is spoken, when it should differ from how it is written.
-- `caption:` is the burn-in caption that scene shows, kept close to the line. Captions live in `record.py`; this copy is for review.
-- Each scene lasts at least as long as its clip plus a short gap, so the narration never gets cut off.
+How this file is used: `demo/voiceover.py` reads every `## scene` heading.
+- `>` is the line as written. It is also the on-screen caption, highlighted word by word as it is spoken.
+- `say:` (optional) is how the line is spoken, when that differs from how it is written.
+- `prosody:` (optional) sets edge-tts `rate` and `pitch` for that line. The default is `rate=+2% pitch=+0Hz`.
+- Punctuation shapes the pauses: commas for short breaths, em dashes for a beat.
+- Each scene lasts at least as long as its line plus a short gap (about 0.3 s), so lines never get cut off. Music fills the longer visual scenes.
+- The intro and outro lines are not captioned, because their cards carry the same words.
 
-Every number comes from the result files: `models/meta.json` (229,474 cleaned survey responses; training used the 80% split, so the line says "built on", not "learned from"), `reports/results.csv` (the 6-question check catches 81.2% of people with diagnosed diabetes on held-out data), and `models/multiyear.json` `temporal_validation`: trained on 2015, tested on 4 later years (2017, 2019, 2021, 2025), test n summing to 956,642, lowest ROC-AUC 0.803.
+## Claim sources
+Every spoken claim, and where it comes from:
+- "More than one in four adults with diabetes don't know they have it": CDC National Diabetes Statistics Report, "At a glance" (updated Sept. 16, 2026). 27.6% of adults aged 18 and older with diabetes are undiagnosed (11.0 million of 40.1 million). https://www.cdc.gov/diabetes/php/data-research/index.html
+- "Six quick questions": the Quick check in `app.py` (6 inputs).
+- "229,474 real survey answers": `models/meta.json` `n_rows` (cleaned BRFSS 2015 responses; training used the 80% split, so the line says "built on").
+- "Catches 81 percent of diagnosed cases": `reports/results.csv`, SHORT (6 questions) on held-out test data, recall 0.8115.
+- "Held up on four later survey years": `models/multiyear.json` `temporal_validation`. Trained on 2015, tested on 2017, 2019, 2021 and 2025 (956,642 responses), lowest ROC-AUC 0.803.
+- "Watch it fall": the scripted what-if (weight 104 to 80 kg, then blood pressure treated). The last take went from 45% to 18%.
+- Spoken numbers, apart from the CDC fraction: three (229,474, 81 percent, four later years).
 
 ## intro
-> Millions of American adults have diabetes, and don't know it.
+> More than one in four adults with diabetes don't know they have it.
 
-caption: (title card) Millions of adults have diabetes and don't know it.
+prosody: rate=+0% pitch=-2Hz
 
 ## home
-> SugarScope is a one-minute diabetes risk check.
+> So what if one minute could tell you whether it's worth getting tested?
 
-caption: Diabetes risk screening, in about a minute.
+prosody: rate=+2% pitch=+1Hz
 
 ## start
-(no line: the caption says it)
-
-caption: Six questions. No sign-up.
+(no line: the click and the page change speak for themselves)
 
 ## fill
-> Six questions from the CDC's health survey. Built on 229,474 real responses, the quick check catches 81 percent of people with diagnosed diabetes.
+> You answer six quick questions — age, weight, a little health history. No sign-up, nothing stored.
 
-say: Six questions from the C D C's health survey. Built on two hundred twenty-nine thousand real responses, the quick check catches eighty-one percent of people with diagnosed diabetes.
-
-
-caption: Six questions from the CDC's BRFSS health survey.
+prosody: rate=+4% pitch=+0Hz
 
 ## result
-> You get a clear risk level, and the answers that raised it.
+> And there it is — your risk level, and exactly which answers pushed it up.
 
-caption: A clear risk level, and the answers behind it.
+prosody: rate=+2% pitch=+0Hz
 
 ## whatif
-> Then ask, what if? Change your weight or a health habit, and watch the estimate drop.
+> Now the fun part. Drop the weight, treat that blood pressure... and watch it fall.
 
-caption: What if? Lower weight, treat blood pressure (or get active, if that toggle shows), watch the risk drop.
+prosody: rate=+0% pitch=+3Hz
 
 ## segments
-> For public health teams, clustering finds four population profiles,
+> Zoom out, and public-health teams can see who to reach first,
 
-caption: 4 population profiles found by clustering.
+prosody: rate=+3% pitch=+0Hz
 
 ## cost
-> and a planner weighs cases caught against the cost of testing.
+> and what screening them would actually cost.
 
-caption: Plan a screening program: cases caught versus cost.
+prosody: rate=+3% pitch=-1Hz
 
 ## validation
-> Checked against four later survey years, nearly a million new responses, its accuracy score held above 0.80.
+> It's built on 229,474 real survey answers, catches 81 percent of diagnosed cases, and held up on four later survey years.
 
-say: Checked against four later survey years, nearly a million new responses, the A U C held above point eight.
+say: It's built on two hundred twenty-nine thousand real survey answers, catches eighty-one percent of diagnosed cases, and held up on four later survey years.
 
-caption: Checked on 4 later survey years: ROC-AUC held above 0.80.
+prosody: rate=+4% pitch=+0Hz
 
 ## outro
-> SugarScope. A screening aid, not a diagnosis. Try it live, or read the code on GitHub.
+> Try it yourself — the link's below. Just remember: it's a screening aid, not a diagnosis.
 
-caption: (outro card) Live app and GitHub links. Screening aid, not a medical diagnosis.
-
-## Planned timing (Andrew, +5%)
-128 words, 46.1 s of speech. The estimated take is about 63 s against the 60 s limit; the real length is known only after the take.
-If it runs over 60 s, the first trims are the home and segments holds, before any narration changes.
-The what-if line says "drop" because both scripted changes lower risk: weight 104 to 80 kg, then blood pressure treated. The form now sets only age, weight and blood pressure Yes.
+prosody: rate=+0% pitch=+1Hz
 
 ## Commands
-- `.venv/Scripts/python demo/voiceover.py all --live-url URL`: tts, then record, then mix (about 4 min).
-- `tts` alone renders the clips and `demo/build/timings.json` (internet, no ffmpeg). `--samples` re-renders the voice comparison.
-- Delete `demo/build/timings.json` to record the silent version with its old pacing.
+- `.venv/Scripts/python demo/voiceover.py tts` renders the lines with word timings into `demo/build/vo/` and writes `timings.json` (needs the internet, no ffmpeg).
+- `.venv/Scripts/python demo/voiceover.py all --live-url URL --music PATH` renders the lines, records the take, builds the framed and zoomed video, mixes voice, music and UI sounds, and writes every output.

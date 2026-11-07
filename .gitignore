@@ -8,3 +8,6 @@ data/
 demo/*.mp4
 demo/raw/
 demo/build/
+
+# third-party track: Pixabay licence forbids redistributing it standalone
+demo/music/*.mp3
