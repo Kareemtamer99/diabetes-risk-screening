@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.ipynb_checkpoints/
+*.pdf
+# demo: keep gif, thumbnail and screenshots; ignore large video and raw captures
+demo/*.mp4
+demo/raw/
+demo/build/

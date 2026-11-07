@@ -1,0 +1,137 @@
+{
+ "years": [
+  2015,
+  2017,
+  2019,
+  2021,
+  2025
+ ],
+ "prevalence_by_year": [
+  {
+   "year": 2015,
+   "rate": 0.13933,
+   "n": 253680
+  },
+  {
+   "year": 2017,
+   "rate": 0.14088,
+   "n": 275854
+  },
+  {
+   "year": 2019,
+   "rate": 0.14507,
+   "n": 243317
+  },
+  {
+   "year": 2021,
+   "rate": 0.14201,
+   "n": 236378
+  },
+  {
+   "year": 2025,
+   "rate": 0.1544,
+   "n": 201093
+  }
+ ],
+ "temporal_validation": [
+  {
+   "train_years": "BRFSS 2015",
+   "test_year": 2017,
+   "roc_auc": 0.8305,
+   "recall": 0.7888,
+   "precision": 0.313,
+   "brier": 0.0973,
+   "n": 275854
+  },
+  {
+   "train_years": "BRFSS 2015",
+   "test_year": 2019,
+   "roc_auc": 0.8242,
+   "recall": 0.7811,
+   "precision": 0.3146,
+   "brier": 0.1004,
+   "n": 243317
+  },
+  {
+   "train_years": "BRFSS 2015",
+   "test_year": 2021,
+   "roc_auc": 0.8185,
+   "recall": 0.7603,
+   "precision": 0.3118,
+   "brier": 0.1,
+   "n": 236378
+  },
+  {
+   "train_years": "BRFSS 2015",
+   "test_year": 2025,
+   "roc_auc": 0.8033,
+   "recall": 0.7613,
+   "precision": 0.3141,
+   "brier": 0.1092,
+   "n": 201093
+  },
+  {
+   "train_years": "2015-2019 (retrained, odd years)",
+   "test_year": 2021,
+   "roc_auc": 0.8183,
+   "recall": 0.7897,
+   "precision": 0.2999,
+   "brier": 0.1,
+   "n": 236378
+  },
+  {
+   "train_years": "2015-2019 (retrained, odd years)",
+   "test_year": 2025,
+   "roc_auc": 0.8037,
+   "recall": 0.7948,
+   "precision": 0.3034,
+   "brier": 0.1091,
+   "n": 201093
+  }
+ ],
+ "total_rows": 1210322,
+ "skipped_years": [
+  2016,
+  2018,
+  2020,
+  2022,
+  2023,
+  2024
+ ],
+ "skipped_reasons": {
+  "2016": "not asked: HighBP, HighChol, CholCheck, Fruits, Veggies",
+  "2018": "not asked: HighBP, HighChol, CholCheck, Fruits, Veggies",
+  "2020": "not asked: HighBP, HighChol, CholCheck, Fruits, Veggies",
+  "2022": "not asked: HighBP, HighChol, CholCheck, Fruits, Veggies",
+  "2023": "not asked: Fruits, Veggies",
+  "2024": "not asked: HighBP, HighChol, CholCheck, Fruits, Veggies"
+ },
+ "missing_states": {
+  "2019": [
+   {
+    "state": "NJ",
+    "reason": "Not in CDC's 2019 public file: New Jersey could not collect enough BRFSS data to meet the minimum requirements for inclusion (CDC 2019 overview)."
+   }
+  ],
+  "2021": [
+   {
+    "state": "FL",
+    "reason": "Not in CDC's 2021 public file: Florida could not collect BRFSS data over enough months to meet the minimum requirements for inclusion (CDC 2021 overview)."
+   }
+  ],
+  "2025": [
+   {
+    "state": "CA",
+    "reason": "Not in CDC's 2025 public file: California could not collect enough data to meet the minimum requirements for inclusion (CDC 2025 annual data page)."
+   },
+   {
+    "state": "MS",
+    "reason": "Not in CDC's 2025 public file: Mississippi could not collect enough data to meet the minimum requirements for inclusion (CDC 2025 annual data page)."
+   },
+   {
+    "state": "NV",
+    "reason": "Not in CDC's 2025 public file: Nevada could not collect enough data to meet the minimum requirements for inclusion (CDC 2025 annual data page)."
+   }
+  ]
+ }
+}

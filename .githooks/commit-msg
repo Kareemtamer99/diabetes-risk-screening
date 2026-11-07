@@ -1,0 +1,6 @@
+#!/bin/sh
+# Reject commit messages carrying tool/assistant attribution (names split by [x] so this file itself stays clean).
+if grep -qiE 'co-author(ed)?-by: *c[l]aude|generated (with|by) *\[?c[l]aude|noreply@a[n]thropic' "$1"; then
+  echo "commit-msg: attribution line found in commit message; remove it and retry." >&2
+  exit 1
+fi

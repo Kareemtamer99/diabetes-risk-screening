@@ -1,0 +1,20 @@
+[theme]
+base = "light"
+primaryColor = "#0E7490"
+backgroundColor = "#F3F7F9"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#172B36"
+borderColor = "#DCE5EA"
+font = "Noto Sans:https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&display=swap"
+headingFont = "Figtree:https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700&display=swap"
+baseRadius = "8px"
+showWidgetBorder = true
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
